@@ -1,8 +1,11 @@
+use chrono::Local;
 use dotenv::dotenv;
 use eframe::egui;
 use egui_commonmark::CommonMarkViewer;
 use sqlx::postgres::PgPoolOptions;
+use std::path::Path;
 use tokio::runtime::Runtime;
+
 struct MyApp {
     content: String,
     title: String,
@@ -27,7 +30,6 @@ async fn upload_to_database(
     )
     .execute(pool)
     .await?;
-
     Ok(())
 }
 
@@ -36,6 +38,7 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.horizontal(|ui| {
+                    // Left side: Input fields for slug, title, and content.
                     ui.vertical(|ui| {
                         ui.add(egui::TextEdit::singleline(&mut self.slug).desired_rows(1));
                         ui.add(egui::TextEdit::singleline(&mut self.title).desired_rows(1));
@@ -57,10 +60,23 @@ impl eframe::App for MyApp {
                             {
                                 eprintln!("Failed to upload to database: {}", e);
                             }
+
+                            let path_save =
+                                std::env::var("PATH_SAVE").expect("PATH_SAVE must be set");
+                            let now = Local::now();
+                            let date_string = now.format("%Y-%m-%d").to_string();
+                            let safe_title = title.replace(" ", "_");
+                            let file_name = format!("{}-{}.md", date_string, safe_title);
+                            let full_path = Path::new(&path_save).join(file_name);
+
+                            if let Err(e) = tokio::fs::write(&full_path, &content).await {
+                                eprintln!("Failed to save markdown file: {}", e);
+                            }
+
                             ctx_clone.request_repaint();
                         });
                     }
-
+                    // Right side: Markdown preview.
                     ui.vertical(|ui| {
                         egui::ScrollArea::vertical().show(ui, |ui| {
                             ui.label("Markdown Preview:");
@@ -77,7 +93,8 @@ impl eframe::App for MyApp {
 }
 
 fn main() {
-    dotenv::dotenv().ok();
+    dotenv().ok();
+
     let rt = Runtime::new().expect("Failed to create Tokio runtime");
     let runtime_handle = rt.handle().clone();
 
