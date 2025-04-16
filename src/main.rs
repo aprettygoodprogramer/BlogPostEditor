@@ -5,6 +5,9 @@ struct MyApp {
     my_string: String,
 }
 
+fn upload_to_database(input: &str) {
+    let processed = input.replace("\n", "\\n").replace("\"", "\\\"");
+}
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -13,6 +16,9 @@ impl eframe::App for MyApp {
                     ui.vertical(|ui| {
                         ui.add(egui::TextEdit::multiline(&mut self.my_string).desired_rows(10));
                     });
+                    if ui.add(egui::Button::new("Upload")).clicked() {
+                        upload_to_database(&self.my_string);
+                    }
 
                     ui.vertical(|ui| {
                         egui::ScrollArea::vertical().show(ui, |ui| {
